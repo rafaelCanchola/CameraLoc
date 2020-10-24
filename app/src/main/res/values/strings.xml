@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">CameraLoc</string>
+    <string name="take_picture">Tomar foto</string>
 </resources>
