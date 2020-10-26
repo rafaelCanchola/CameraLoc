@@ -8,10 +8,13 @@ import androidx.core.app.ActivityCompat;
 import android.Manifest;
 import android.content.ContentResolver;
 import android.content.ContentValues;
+import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Rect;
 import android.location.Location;
 import android.media.ExifInterface;
 import android.net.Uri;
@@ -21,8 +24,11 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
 
@@ -48,19 +54,20 @@ public class MainActivity extends AppCompatActivity {
         photoImageViewTwo = findViewById(R.id.photoImgTwo);
         firstPhotoButton = findViewById(R.id.cam_button_one);
         secondPhotoButton = findViewById(R.id.cam_button_two);
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         verifyPermissions();
     }
 
     public void takePhoto(View v) {
         myPhoto = new GeoPhoto();
         try {
-            myPhoto.OpenCamera(null);
+            myPhoto.openCamera("id-3542");
             switch (v.getId()) {
                 case R.id.cam_button_one:
-                    startActivityForResult(myPhoto.ReturnCameraIntent(), Constants.ACTIVITY_CAMERA_BUTTON_1);
+                    startActivityForResult(myPhoto.returnCameraIntent(), Constants.ACTIVITY_CAMERA_BUTTON_1);
                     break;
                 case R.id.cam_button_two:
-                    startActivityForResult(myPhoto.ReturnCameraIntent(), Constants.ACTIVITY_CAMERA_BUTTON_2);
+                    startActivityForResult(myPhoto.returnCameraIntent(), Constants.ACTIVITY_CAMERA_BUTTON_2);
                     break;
             }
         } catch (IOException e) {
@@ -124,12 +131,12 @@ public class MainActivity extends AppCompatActivity {
 
     private void resultGeoPhoto(int requestCode){
         Bitmap photoCapturedBitmap;
-        photoCapturedBitmap = BitmapFactory.decodeFile(myPhoto.PhotoFilePath());
+        photoCapturedBitmap = BitmapFactory.decodeFile(myPhoto.photoFilePath());
         if(photoCapturedBitmap == null){
             resultGeoPhoto(requestCode);
         }
         else {
-            if (myPhoto.MarkGeoTagImage(this)) {
+            if (myPhoto.markGeoTagImage(this)) {
                 switch (requestCode) {
                     case Constants.ACTIVITY_CAMERA_BUTTON_1:
                             photoImageViewOne.setImageBitmap(photoCapturedBitmap);
@@ -142,10 +149,29 @@ public class MainActivity extends AppCompatActivity {
                 }
             } else {
                 Toast.makeText(this, "Ocurrio un error al añadir la ubicación. Vuelva a tomar la imagen.", Toast.LENGTH_SHORT).show();
-                myPhoto.DeleteGeoPhoto();
+                myPhoto.deleteGeoPhoto();
             }
         }
     }
+    //Remover focus del textEdit cuando se toca la pantalla
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        if (event.getAction() == MotionEvent.ACTION_DOWN) {
+            View v = getCurrentFocus();
+            if ( v instanceof EditText) {
+                Rect outRect = new Rect();
+                v.getGlobalVisibleRect(outRect);
+                if (!outRect.contains((int)event.getRawX(), (int)event.getRawY())) {
+                    v.clearFocus();
+                    ((EditText) v).setCursorVisible(false);
+                    InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                    imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
+                }
+            }
+        }
+        return super.dispatchTouchEvent( event );
+    }
+
 
     public void readGeoTagImage(String imagePath) {
         Location loc = new Location("");
