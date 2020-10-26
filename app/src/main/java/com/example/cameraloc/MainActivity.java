@@ -3,10 +3,13 @@ package com.example.cameraloc;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 
+import android.Manifest;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.location.Location;
@@ -14,7 +17,10 @@ import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -28,163 +34,132 @@ import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final int ACTIVITY_CAMERA_BUTTON_1 = 1;
-    private static final int ACTIVITY_CAMERA_BUTTON_2 = 2;
     private ImageView photoImageViewOne;
     private ImageView photoImageViewTwo;
     private Button firstPhotoButton;
     private Button secondPhotoButton;
-    private String imageOneFileLocation;
-    private String imageTwoFileLocation;
-    GPSTrack gps;
+    private GeoPhoto myPhoto;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        photoImageViewOne = (ImageView) findViewById(R.id.photoImgOne);
-        photoImageViewTwo = (ImageView) findViewById(R.id.photoImgTwo);
-        firstPhotoButton = (Button) findViewById(R.id.cam_button_one);
-        secondPhotoButton = (Button) findViewById(R.id.cam_button_two);
+        photoImageViewOne = findViewById(R.id.photoImgOne);
+        photoImageViewTwo = findViewById(R.id.photoImgTwo);
+        firstPhotoButton = findViewById(R.id.cam_button_one);
+        secondPhotoButton = findViewById(R.id.cam_button_two);
+        verifyPermissions();
     }
-    public void takePhoto(View v){
-        Toast.makeText(this, "camera button pressed", Toast.LENGTH_SHORT).show();
-        Intent callCameraApplication = new Intent();
-        callCameraApplication.setAction(MediaStore.ACTION_IMAGE_CAPTURE);
-        File photoFile = null;
-        try {
 
-            switch(v.getId()){
+    public void takePhoto(View v) {
+        myPhoto = new GeoPhoto();
+        try {
+            myPhoto.OpenCamera(null);
+            switch (v.getId()) {
                 case R.id.cam_button_one:
-                    photoFile = createImageFile(ACTIVITY_CAMERA_BUTTON_1);
-                    callCameraApplication.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(photoFile));
-                    startActivityForResult(callCameraApplication, ACTIVITY_CAMERA_BUTTON_1);
-                    //File fli = contentValuesImage(photoFile);
+                    startActivityForResult(myPhoto.ReturnCameraIntent(), Constants.ACTIVITY_CAMERA_BUTTON_1);
                     break;
                 case R.id.cam_button_two:
-                    photoFile = createImageFile(ACTIVITY_CAMERA_BUTTON_2);
-                    callCameraApplication.putExtra(MediaStore.EXTRA_OUTPUT, Uri.fromFile(photoFile));
-                    startActivityForResult(callCameraApplication, ACTIVITY_CAMERA_BUTTON_2);
+                    startActivityForResult(myPhoto.ReturnCameraIntent(), Constants.ACTIVITY_CAMERA_BUTTON_2);
                     break;
             }
-        }catch (IOException e){
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        Bitmap photoCapturedBitmap;
-        if(resultCode == RESULT_OK){
-            switch (requestCode){
-                case ACTIVITY_CAMERA_BUTTON_1:
-                    gps = new GPSTrack(this);
-                    if(gps.canGetLocation()) {
-                        double latitude = gps.getLatitude();
-                        double longitude = gps.getLongitude();
-                        Toast.makeText(getApplicationContext(), "Your Location is - \nLat: " + latitude + "\nLong: " + longitude, Toast.LENGTH_LONG).show();
-                        MarkGeoTagImage(imageOneFileLocation);
-                    }
-                    photoCapturedBitmap = BitmapFactory.decodeFile(imageOneFileLocation);
-                    photoImageViewOne.setImageBitmap(photoCapturedBitmap);
-                    firstPhotoButton.setVisibility(View.GONE);
-                    readGeoTagImage(imageOneFileLocation);
-                    break;
-                case ACTIVITY_CAMERA_BUTTON_2:
-                    gps = new GPSTrack(this);
-                    if(gps.canGetLocation()) {
-                        double latitude = gps.getLatitude();
-                        double longitude = gps.getLongitude();
-                        Toast.makeText(getApplicationContext(), "Your Location is - \nLat: " + latitude + "\nLong: " + longitude, Toast.LENGTH_LONG).show();
-                        MarkGeoTagImage(imageTwoFileLocation);
-                        readGeoTagImage(imageTwoFileLocation);
-                    }
-                    photoCapturedBitmap = BitmapFactory.decodeFile(imageTwoFileLocation);
-                    photoImageViewTwo.setImageBitmap(photoCapturedBitmap);
+        if (resultCode == RESULT_OK){
+                ResultGeoPhoto(requestCode);
+        }
+        if(requestCode == RESULT_CANCELED){
+            Log.i("result","canceled");
+        }
 
+    }
 
-                    secondPhotoButton.setVisibility(View.GONE);
-                    break;
+    public void verifyPermissions() {
+        if (verifyLocation() && verifyStorage()) {
+            Log.i("verifyPermissions", "all true");
+        } else if (verifyLocation() && !verifyStorage()) {
+            requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, Constants.PERMISSION_CODE);
+            Log.i("verifyPermissions", "storage true");
+        } else if (!verifyLocation() && verifyStorage()) {
+            requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION}, Constants.PERMISSION_CODE);
+            Log.i("verifyPermissions", "location true");
+        } else {
+            requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.WRITE_EXTERNAL_STORAGE}, Constants.PERMISSION_CODE);
+            Log.i("verifyPermissions", "none true");
+        }
+    }
+//No dejar que la aplicación continue
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == Constants.PERMISSION_CODE) {
+            if (grantResults.length > 0) {
+                for (int i = 0; i < grantResults.length; i++) {
+                    if (grantResults[i] == PackageManager.PERMISSION_GRANTED) {
+                        Log.i("requestPermission", permissions[i] + " is true");
+                    } else {
+                        Log.i("requestPermission", permissions[i] + " is false");
+                    }
+                }
+                Log.i("requestPermission", String.valueOf(grantResults.length));
+            } else {
+                Log.i("requestPermission", "none still true");
             }
         }
-        //if (requestCode == ACTIVITY_CAMERA_BUTTON_1 && resultCode == RESULT_OK) {
-        //Toast.makeText(this,"Picture taken successfully", Toast.LENGTH_LONG).show();
-        //Bundle extras = data.getExtras();
-        //Bitmap photoCapturedBitmap = (Bitmap) extras.get("data");
-        //photoImageViewOne.setImageBitmap(photoCapturedBitmap);
-
-        //firstPhotoButton.setVisibility(View.GONE);
-        //}
+    }
+    
+    private boolean verifyLocation() {
+        return (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED &&
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED);
     }
 
-    private File createImageFile(int id) throws IOException {
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
-        String imageFileName = "IMAGE_"+timeStamp;
-        File storageDirectory = Environment.getExternalStoragePublicDirectory((Environment.DIRECTORY_PICTURES));
-        File image = File.createTempFile(imageFileName,".jpg",storageDirectory);
-        switch(id){
-            case ACTIVITY_CAMERA_BUTTON_1:
-                imageOneFileLocation = image.getAbsolutePath();
-                break;
-            case ACTIVITY_CAMERA_BUTTON_2:
-                imageTwoFileLocation = image.getAbsolutePath();
-                break;
+    private boolean verifyStorage() {
+        return (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED);
+
+    }
+
+    private void ResultGeoPhoto(int requestCode){
+        Bitmap photoCapturedBitmap;
+        photoCapturedBitmap = BitmapFactory.decodeFile(myPhoto.PhotoFilePath());
+        if(photoCapturedBitmap == null){
+            ResultGeoPhoto(requestCode);
         }
-        return image;
-    }
-
-    private File contentValuesImage(File fl){
-        ContentValues values = new ContentValues(9);
-        values.put(MediaStore.Images.ImageColumns.TITLE, fl.getName());
-        values.put(MediaStore.Images.ImageColumns.DISPLAY_NAME, fl.getName() + ".jpg");
-        values.put(MediaStore.Images.ImageColumns.DATE_TAKEN,  new SimpleDateFormat("yyyyMMdd").format(new Date()));
-        values.put(MediaStore.Images.ImageColumns.MIME_TYPE, "image/jpeg");
-        // Clockwise rotation in degrees. 0, 90, 180, or 270.
-        values.put(MediaStore.Images.ImageColumns.ORIENTATION, 0);
-        values.put(MediaStore.Images.ImageColumns.DATA, fl.getAbsolutePath());
-        values.put(MediaStore.Images.ImageColumns.SIZE, fl.length());
-        //setImageSize(values, width, height);
-        gps = new GPSTrack(this);
-        if(gps.canGetLocation()) {
-            values.put(MediaStore.Images.ImageColumns.LATITUDE, gps.getLatitude());
-            values.put(MediaStore.Images.ImageColumns.LONGITUDE, gps.getLongitude());
-        }
-        ContentResolver resolver = getBaseContext().getContentResolver();
-        Uri uri = resolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values);
-        return fl;
-    }
-
-    public void MarkGeoTagImage(String imagePath)
-    {
-        try {
-            ExifInterface exif = new ExifInterface(imagePath);
-            GPSTrack location = new GPSTrack(this);
-            exif.setAttribute(ExifInterface.TAG_GPS_LATITUDE, GPSTrack.convert(location.getLatitude()));
-            exif.setAttribute(ExifInterface.TAG_GPS_LATITUDE_REF, GPSTrack.latitudeRef(location.getLatitude()));
-            exif.setAttribute(ExifInterface.TAG_GPS_LONGITUDE, GPSTrack.convert(location.getLongitude()));
-            exif.setAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF, GPSTrack.longitudeRef(location.getLongitude()));
-            SimpleDateFormat fmt_Exif = new SimpleDateFormat("yyyy:MM:dd HH:mm:ss");
-            //  exif.setAttribute(ExifInterface.TAG_DATETIME,fmt_Exif.format(new Date(location.getTime())));
-            exif.setAttribute(ExifInterface.TAG_USER_COMMENT, "Mi descripcion");
-            exif.saveAttributes();
-        } catch (IOException e) {
-            e.printStackTrace();
+        else {
+            if (myPhoto.MarkGeoTagImage(this)) {
+                switch (requestCode) {
+                    case Constants.ACTIVITY_CAMERA_BUTTON_1:
+                            photoImageViewOne.setImageBitmap(photoCapturedBitmap);
+                            firstPhotoButton.setVisibility(View.GONE);
+                        break;
+                    case Constants.ACTIVITY_CAMERA_BUTTON_2:
+                            photoImageViewTwo.setImageBitmap(photoCapturedBitmap);
+                            secondPhotoButton.setVisibility(View.GONE);
+                        break;
+                }
+            } else {
+                Toast.makeText(this, "Ocurrio un error al añadir la ubicación. Vuelva a tomar la imagen.", Toast.LENGTH_SHORT).show();
+                myPhoto.DeleteGeoPhoto();
+            }
         }
     }
 
-    public void readGeoTagImage(String imagePath)
-    {
+    public void readGeoTagImage(String imagePath) {
         Location loc = new Location("");
         try {
             ExifInterface exif = new ExifInterface(imagePath);
-            float [] latlong = new float[2] ;
+            float[] latlong = new float[2];
 
 
-            if(exif.getLatLong(latlong)){
+            if (exif.getLatLong(latlong)) {
                 loc.setLatitude(latlong[0]);
                 loc.setLongitude(latlong[1]);
             }
-            String uc = exif.getAttribute(ExifInterface.TAG_USER_COMMENT);
+            String uc = exif.getAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION);
             Toast.makeText(getApplicationContext(), "Your Location is - \nLat: " + exif.getAttribute(ExifInterface.TAG_GPS_LATITUDE) + "\nLong: " + exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE) + "\nComment is: " + uc, Toast.LENGTH_LONG).show();
 
         } catch (IOException e) {

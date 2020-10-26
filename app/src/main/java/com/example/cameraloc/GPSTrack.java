@@ -1,6 +1,5 @@
 package com.example.cameraloc;
 
-import android.Manifest;
 import android.app.AlertDialog;
 import android.app.Service;
 import android.content.Context;
@@ -14,8 +13,6 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.Settings;
 import android.util.Log;
-
-import androidx.core.app.ActivityCompat;
 
 public class GPSTrack extends Service implements LocationListener {
     private Context mContext;
@@ -66,7 +63,7 @@ public class GPSTrack extends Service implements LocationListener {
         sb.append("/1000,");
         return sb.toString();
     }
-    public Location getLocation() {
+    private Location getLocation() {
         try {
             locationManager = (LocationManager) mContext
                     .getSystemService(LOCATION_SERVICE);
@@ -80,16 +77,6 @@ public class GPSTrack extends Service implements LocationListener {
             } else {
                 this.canGetLocation = true;
                 if (isNetworkEnabled) {
-                    if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                        // TODO: Consider calling
-                        //    ActivityCompat#requestPermissions
-                        // here to request the missing permissions, and then overriding
-                        //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-                        //                                          int[] grantResults)
-                        // to handle the case where the user grants the permission. See the documentation
-                        // for ActivityCompat#requestPermissions for more details.
-                        // return ActivityCompat.requestPermissions();
-                    }
                     locationManager.requestLocationUpdates(
                             LocationManager.NETWORK_PROVIDER,
                             MIN_TIME_BW_UPDATES,
