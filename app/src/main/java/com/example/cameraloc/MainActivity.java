@@ -71,12 +71,11 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (resultCode == RESULT_OK){
-                ResultGeoPhoto(requestCode);
+                resultGeoPhoto(requestCode);
         }
         if(requestCode == RESULT_CANCELED){
             Log.i("result","canceled");
         }
-
     }
 
     public void verifyPermissions() {
@@ -123,11 +122,11 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private void ResultGeoPhoto(int requestCode){
+    private void resultGeoPhoto(int requestCode){
         Bitmap photoCapturedBitmap;
         photoCapturedBitmap = BitmapFactory.decodeFile(myPhoto.PhotoFilePath());
         if(photoCapturedBitmap == null){
-            ResultGeoPhoto(requestCode);
+            resultGeoPhoto(requestCode);
         }
         else {
             if (myPhoto.MarkGeoTagImage(this)) {

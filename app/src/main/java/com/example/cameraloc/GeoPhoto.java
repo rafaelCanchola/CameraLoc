@@ -24,7 +24,7 @@ public class GeoPhoto {
         callCameraApp = new Intent();
     }
 
-    public void OpenCamera(String message) throws IOException {
+    public void openCamera(String message) throws IOException {
         callCameraApp.setAction(MediaStore.ACTION_IMAGE_CAPTURE);
         createImageFile();
         descriptionString = message;
@@ -33,15 +33,15 @@ public class GeoPhoto {
     }
 
 
-    public String PhotoFilePath() {
+    public String photoFilePath() {
         return photoFile.getAbsolutePath();
     }
 
-    public String PhotoFileName() {
+    public String photoFileName() {
         return photoFile.getName();
     }
 
-    public Intent ReturnCameraIntent() {
+    public Intent returnCameraIntent() {
         return callCameraApp;
     }
 
@@ -52,10 +52,10 @@ public class GeoPhoto {
         photoFile = File.createTempFile(imageFileName, ".jpg", storageDirectory);
     }
 
-    public boolean MarkGeoTagImage(Context context) {
+    public boolean markGeoTagImage(Context context) {
         try {
-            ExifInterface exif = new ExifInterface(PhotoFilePath());
-            Log.i("geotag", PhotoFilePath());
+            ExifInterface exif = new ExifInterface(photoFilePath());
+            Log.i("geotag", photoFilePath());
             GPSTrack location = new GPSTrack(context);
             exif.setAttribute(ExifInterface.TAG_GPS_LATITUDE, GPSTrack.convert(location.getLatitude()));
             exif.setAttribute(ExifInterface.TAG_GPS_LATITUDE_REF, GPSTrack.latitudeRef(location.getLatitude()));
@@ -78,7 +78,7 @@ public class GeoPhoto {
         }
     }
 
-    public boolean DeleteGeoPhoto(){
+    public boolean deleteGeoPhoto(){
         callCameraApp = null;
         descriptionString = null;
         return photoFile.delete();
