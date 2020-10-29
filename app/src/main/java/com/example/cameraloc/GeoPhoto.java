@@ -13,7 +13,12 @@ import android.util.Log;
 import androidx.core.content.FileProvider;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -21,7 +26,6 @@ public class GeoPhoto {
 
     private File photoFile;
     private Intent callCameraApp;
-    private String descriptionString;
     private Context appContext;
     private String packageProvider;
 
@@ -32,11 +36,10 @@ public class GeoPhoto {
         packageProvider = appContext.getApplicationContext().getPackageName() + ".provider";
     }
 
-    public void openCamera(String message) throws IOException {
+    public void openCamera() throws IOException {
         Uri uriFile;
         callCameraApp.setAction(MediaStore.ACTION_IMAGE_CAPTURE);
         createImageFile();
-        descriptionString = message;
         uriFile = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)?
                 FileProvider.getUriForFile(appContext,packageProvider,photoFile):
                 Uri.fromFile(photoFile);
@@ -59,8 +62,11 @@ public class GeoPhoto {
     private void createImageFile() throws IOException {
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         String imageFileName = "IMAGE_" + timeStamp;
-        File storageDirectory = Environment.getExternalStoragePublicDirectory((Environment.DIRECTORY_DCIM));
+        File storageDirectory = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)?
+                appContext.getCacheDir():
+                Environment.getExternalStoragePublicDirectory((Environment.DIRECTORY_DCIM));
         photoFile = File.createTempFile(imageFileName, ".jpg", storageDirectory);
+        Log.i("createImage",photoFilePath());
     }
 
     public boolean markGeoTagImage() {
@@ -72,7 +78,6 @@ public class GeoPhoto {
             exif.setAttribute(ExifInterface.TAG_GPS_LATITUDE_REF, GPSTrack.latitudeRef(location.getLatitude()));
             exif.setAttribute(ExifInterface.TAG_GPS_LONGITUDE, GPSTrack.convert(location.getLongitude()));
             exif.setAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF, GPSTrack.longitudeRef(location.getLongitude()));
-            exif.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, descriptionString);
             exif.saveAttributes();
             return true;
         }catch(IOException e){
@@ -83,10 +88,49 @@ public class GeoPhoto {
             return false;
         }
     }
+    public void setImageDescription(String desc){
+        try{
+            ExifInterface exif = new ExifInterface(photoFilePath());
+            if(desc == null || desc.equals("")) {
+                exif.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION, photoFileName());
+            }else{
+                exif.setAttribute(ExifInterface.TAG_IMAGE_DESCRIPTION,desc);
+            }
+            exif.setAttribute(ExifInterface.TAG_USER_COMMENT,"");
+            exif.saveAttributes();
+            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                saveImage();
+            }
+        }catch (IOException e){
+            e.printStackTrace();
+        }
+    }
 
     public boolean deleteGeoPhoto(){
         callCameraApp = null;
-        descriptionString = null;
         return photoFile.delete();
+    }
+
+    private void saveImage(){
+        File storageDirectory =
+                Environment.getExternalStoragePublicDirectory((Environment.DIRECTORY_DCIM));
+        File targetLocation= new File (storageDirectory + "/" + photoFileName());
+        Log.i("save",storageDirectory+ "/" + photoFileName());
+    try {
+        InputStream in = new FileInputStream(photoFile);
+        OutputStream out = new FileOutputStream(targetLocation);
+        byte[] buf = new byte[1024];
+        int len;
+        while ((len = in.read(buf)) > 0) {
+            out.write(buf, 0, len);
+        }
+        in.close();
+        out.close();
+    }catch(FileNotFoundException f){
+        f.printStackTrace();
+    }
+    catch (IOException e){
+        e.printStackTrace();
+    }
     }
 }

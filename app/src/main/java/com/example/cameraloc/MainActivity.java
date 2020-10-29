@@ -18,6 +18,7 @@ import android.graphics.Rect;
 import android.location.Location;
 import android.media.ExifInterface;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -44,6 +45,8 @@ public class MainActivity extends AppCompatActivity {
     private ImageView photoImageViewTwo;
     private Button firstPhotoButton;
     private Button secondPhotoButton;
+    private EditText firstEditText;
+    private EditText secondEditText;
     private GeoPhoto myPhoto;
 
     @Override
@@ -54,6 +57,8 @@ public class MainActivity extends AppCompatActivity {
         photoImageViewTwo = findViewById(R.id.photoImgTwo);
         firstPhotoButton = findViewById(R.id.cam_button_one);
         secondPhotoButton = findViewById(R.id.cam_button_two);
+        firstEditText = findViewById(R.id.getText1);
+        secondEditText = findViewById(R.id.getText2);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
         verifyPermissions();
     }
@@ -61,7 +66,7 @@ public class MainActivity extends AppCompatActivity {
     public void takePhoto(View v) {
         myPhoto = new GeoPhoto(this);
         try {
-            myPhoto.openCamera("id-3542");
+            myPhoto.openCamera();
             switch (v.getId()) {
                 case R.id.cam_button_one:
                     startActivityForResult(myPhoto.returnCameraIntent(), Constants.ACTIVITY_CAMERA_BUTTON_1);
@@ -132,17 +137,19 @@ public class MainActivity extends AppCompatActivity {
     private void resultGeoPhoto(int requestCode){
         Bitmap photoCapturedBitmap;
         photoCapturedBitmap = BitmapFactory.decodeFile(myPhoto.photoFilePath());
-        //if(photoCapturedBitmap == null){
-          //  resultGeoPhoto(requestCode);
-        //}
-        //else {
+        if(photoCapturedBitmap == null && Build.VERSION.SDK_INT < Build.VERSION_CODES.N){
+            resultGeoPhoto(requestCode);
+        }
+        else {
             if (myPhoto.markGeoTagImage()) {
                 switch (requestCode) {
                     case Constants.ACTIVITY_CAMERA_BUTTON_1:
+                            myPhoto.setImageDescription(firstEditText.getText().toString());
                             photoImageViewOne.setImageBitmap(photoCapturedBitmap);
                             firstPhotoButton.setVisibility(View.GONE);
                         break;
                     case Constants.ACTIVITY_CAMERA_BUTTON_2:
+                            myPhoto.setImageDescription(secondEditText.getText().toString());
                             photoImageViewTwo.setImageBitmap(photoCapturedBitmap);
                             secondPhotoButton.setVisibility(View.GONE);
                         break;
@@ -151,7 +158,7 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "Ocurrio un error al añadir la ubicación. Vuelva a tomar la imagen.", Toast.LENGTH_SHORT).show();
                 myPhoto.deleteGeoPhoto();
             }
-        //}
+        }
     }
     //Remover focus del textEdit cuando se toca la pantalla
     @Override
