@@ -59,7 +59,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void takePhoto(View v) {
-        myPhoto = new GeoPhoto();
+        myPhoto = new GeoPhoto(this);
         try {
             myPhoto.openCamera("id-3542");
             switch (v.getId()) {
@@ -132,11 +132,11 @@ public class MainActivity extends AppCompatActivity {
     private void resultGeoPhoto(int requestCode){
         Bitmap photoCapturedBitmap;
         photoCapturedBitmap = BitmapFactory.decodeFile(myPhoto.photoFilePath());
-        if(photoCapturedBitmap == null){
-            resultGeoPhoto(requestCode);
-        }
-        else {
-            if (myPhoto.markGeoTagImage(this)) {
+        //if(photoCapturedBitmap == null){
+          //  resultGeoPhoto(requestCode);
+        //}
+        //else {
+            if (myPhoto.markGeoTagImage()) {
                 switch (requestCode) {
                     case Constants.ACTIVITY_CAMERA_BUTTON_1:
                             photoImageViewOne.setImageBitmap(photoCapturedBitmap);
@@ -151,7 +151,7 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "Ocurrio un error al añadir la ubicación. Vuelva a tomar la imagen.", Toast.LENGTH_SHORT).show();
                 myPhoto.deleteGeoPhoto();
             }
-        }
+        //}
     }
     //Remover focus del textEdit cuando se toca la pantalla
     @Override
